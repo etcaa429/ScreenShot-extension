@@ -1,122 +1,135 @@
-// 等待文檔加載完成
+// popup.js - Manifest V3版本
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Screenshot V3] Popup loaded');
+
     // 獲取按鈕元素
-    var normalScreenshotBtn = document.getElementById('normalScreenshot');
-    var scrollingScreenshotBtn = document.getElementById('scrollingScreenshot');
-    var viewHistoryBtn = document.getElementById('viewHistory');
-    var openSettingsBtn = document.getElementById('openSettings');
-    var statusMessage = document.getElementById('statusMessage');
-    
-    // 普通截圖按鈕點擊事件
-    normalScreenshotBtn.addEventListener('click', function() {
-        showLoading(this);
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, {action: 'normalScreenshot'}, function(response) {
-                hideLoading(normalScreenshotBtn);
-                if (response && response.success) {
-                    showStatus('截圖成功！', 'success');
-                } else {
-                    showStatus('截圖失敗，請重試。', 'error');
-                }
-            });
-        });
+    const normalScreenshotBtn = document.getElementById('normalScreenshot');
+    const scrollingScreenshotBtn = document.getElementById('scrollingScreenshot');
+    const viewHistoryBtn = document.getElementById('viewHistory');
+    const openSettingsBtn = document.getElementById('openSettings');
+    const statusMessage = document.getElementById('statusMessage');
+
+    // 普通截圖按鈕
+    normalScreenshotBtn.addEventListener('click', async function() {
+        await executeScreenshotAction('normalScreenshot', this, '截圖');
     });
-    
-    // 滾動截圖按鈕點擊事件
-    scrollingScreenshotBtn.addEventListener('click', function() {
-        showLoading(this);
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, {action: 'scrollingScreenshot'}, function(response) {
-                hideLoading(scrollingScreenshotBtn);
-                if (response && response.success) {
-                    showStatus('滾動截圖開始，按左鍵停止。', 'success');
-                } else {
-                    showStatus('滾動截圖失敗，請重試。', 'error');
-                }
-            });
-        });
+
+    // 滾動截圖按鈕
+    scrollingScreenshotBtn.addEventListener('click', async function() {
+        await executeScreenshotAction('scrollingScreenshot', this, '滾動截圖');
     });
-    
-    // 查看歷史按鈕點擊事件
-    viewHistoryBtn.addEventListener('click', function() {
+
+    // 查看歷史按鈕
+    viewHistoryBtn.addEventListener('click', async function() {
         showLoading(this);
-        chrome.storage.local.get('screenshotHistory', function(result) {
+        try {
+            const result = await chrome.storage.local.get('screenshotHistory');
             hideLoading(viewHistoryBtn);
-            var history = result.screenshotHistory || [];
+
+            const history = result.screenshotHistory || [];
             if (history.length === 0) {
                 showStatus('沒有截圖歷史記錄。', 'success');
             } else {
-                // 創建歷史記錄對話框
+                // 創建歷史記錄視窗
                 createHistoryDialog(history);
             }
-        });
+        } catch (error) {
+            hideLoading(viewHistoryBtn);
+            console.error('[Screenshot V3] View history error:', error);
+            showStatus('讀取歷史失敗: ' + error.message, 'error');
+        }
     });
-    
-    // 打開設置按鈕點擊事件
+
+    // 統一的截圖執行函數
+    async function executeScreenshotAction(action, button, actionName) {
+        showLoading(button);
+        try {
+            const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+
+            // 發送消息到content script
+            const response = await chrome.tabs.sendMessage(tab.id, {action: action});
+
+            hideLoading(button);
+
+            if (response && response.success) {
+                showStatus(`${actionName}已開始`, 'success');
+                if (action === 'scrollingScreenshot') {
+                    setTimeout(() => window.close(), 1000); // 延遲關閉讓用戶看到消息
+                }
+            } else {
+                showStatus(`${actionName}失敗: ${response.error || '未知錯誤'}`, 'error');
+            }
+        } catch (error) {
+            hideLoading(button);
+            console.error(`[Screenshot V3] ${actionName} error:`, error);
+
+            if (error.message.includes('Could not establish connection')) {
+                showStatus('請刷新頁面後重試', 'error');
+            } else {
+                showStatus(`${actionName}失敗: ${error.message}`, 'error');
+            }
+        }
+    }
+
+    // 打開設置按鈕
     openSettingsBtn.addEventListener('click', function() {
         chrome.runtime.openOptionsPage();
     });
-    
+
     // 顯示加載狀態
     function showLoading(button) {
         button.classList.add('loading');
+        button.disabled = true;
     }
-    
+
     // 隱藏加載狀態
     function hideLoading(button) {
         button.classList.remove('loading');
+        button.disabled = false;
     }
-    
+
     // 顯示狀態消息
     function showStatus(message, type) {
         statusMessage.textContent = message;
         statusMessage.className = 'status ' + type;
-        
-        // 3秒後隱藏消息
         setTimeout(function() {
             statusMessage.className = 'status';
         }, 3000);
     }
-    
+
     // 創建歷史記錄對話框
     function createHistoryDialog(history) {
-        // 創建對話框容器
-        var dialog = document.createElement('div');
+        const dialog = document.createElement('div');
         dialog.style.cssText = `
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.7);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            font-family: Arial, sans-serif;
         `;
-        
-        // 創建對話框內容
-        var dialogContent = document.createElement('div');
-        dialogContent.style.cssText = `
+
+        const content = document.createElement('div');
+        content.style.cssText = `
             background: white;
             padding: 20px;
             border-radius: 8px;
-            width: 80%;
-            max-width: 600px;
-            max-height: 80vh;
+            width: 500px;
+            max-height: 600px;
             overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            position: relative;
         `;
-        
-        // 對話框標題
-        var title = document.createElement('h2');
+
+        const title = document.createElement('h2');
         title.textContent = '截圖歷史記錄';
-        title.style.cssText = 'margin-top: 0; color: #2c3e50;';
-        
-        // 關閉按鈕
-        var closeBtn = document.createElement('button');
-        closeBtn.textContent = '關閉';
+        title.style.cssText = 'margin: 0 0 15px 0; color: #2c3e50;';
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '×';
         closeBtn.style.cssText = `
             position: absolute;
             top: 10px;
@@ -124,159 +137,141 @@ document.addEventListener('DOMContentLoaded', function() {
             background: #e74c3c;
             color: white;
             border: none;
-            border-radius: 4px;
-            padding: 5px 10px;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
             cursor: pointer;
+            font-size: 20px;
+            line-height: 1;
         `;
-        
-        closeBtn.addEventListener('click', function() {
-            document.body.removeChild(dialog);
+        closeBtn.addEventListener('click', () => document.body.removeChild(dialog));
+
+        const list = document.createElement('div');
+
+        history.forEach((item, index) => {
+            const itemDiv = createHistoryItem(item, index, history, dialog);
+            list.appendChild(itemDiv);
         });
-        
-        // 歷史記錄列表
-        var historyList = document.createElement('div');
-        historyList.style.cssText = 'margin-top: 20px;';
-        
-        // 添加每條歷史記錄
-        history.forEach(function(item, index) {
-            var historyItem = document.createElement('div');
-            historyItem.style.cssText = `
-                padding: 15px;
-                border-bottom: 1px solid #f1f1f1;
-                margin-bottom: 10px;
-                position: relative;
-            `;
-            
-            var itemTitle = document.createElement('h3');
-            itemTitle.textContent = '截圖 ' + (index + 1);
-            itemTitle.style.cssText = 'margin: 0 0 10px 0; color: #3498db;';
-            
-            var itemInfo = document.createElement('div');
-            itemInfo.style.cssText = 'font-size: 12px; color: #7f8c8d; margin-bottom: 10px;';
-            itemInfo.innerHTML = `
-                <div>時間: ${new Date(item.timestamp).toLocaleString()}</div>
-                <div>類型: ${item.type}</div>
-                <div>檔名: ${item.filename}</div>
-            `;
-            
-            var previewBtn = document.createElement('button');
-            previewBtn.textContent = '預覽';
-            previewBtn.style.cssText = `
-                background: #3498db;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 5px 10px;
-                cursor: pointer;
-                margin-right: 5px;
-            `;
-            
-            previewBtn.addEventListener('click', function() {
-                previewScreenshot(item.dataUrl);
-            });
-            
-            var downloadBtn = document.createElement('button');
-            downloadBtn.textContent = '下載';
-            downloadBtn.style.cssText = `
-                background: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 5px 10px;
-                cursor: pointer;
-                margin-right: 5px;
-            `;
-            
-            downloadBtn.addEventListener('click', function() {
-                downloadScreenshot(item.dataUrl, item.filename);
-            });
-            
-            var deleteBtn = document.createElement('button');
-            deleteBtn.textContent = '刪除';
-            deleteBtn.style.cssText = `
-                background: #e74c3c;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 5px 10px;
-                cursor: pointer;
-            `;
-            
-            deleteBtn.addEventListener('click', function() {
-                if (confirm('確定要刪除這張截圖嗎？')) {
-                    history.splice(index, 1);
-                    chrome.storage.local.set({screenshotHistory: history}, function() {
-                        document.body.removeChild(dialog);
-                        createHistoryDialog(history);
-                    });
-                }
-            });
-            
-            historyItem.appendChild(itemTitle);
-            historyItem.appendChild(itemInfo);
-            historyItem.appendChild(previewBtn);
-            historyItem.appendChild(downloadBtn);
-            historyItem.appendChild(deleteBtn);
-            historyList.appendChild(historyItem);
-        });
-        
-        // 清空歷史按鈕
-        var clearBtn = document.createElement('button');
-        clearBtn.textContent = '清空所有歷史記錄';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = '清空所有歷史';
         clearBtn.style.cssText = `
             background: #e74c3c;
             color: white;
             border: none;
             border-radius: 4px;
-            padding: 8px 15px;
+            padding: 10px 20px;
             cursor: pointer;
-            margin-top: 20px;
             width: 100%;
+            margin-top: 15px;
         `;
-        
-        clearBtn.addEventListener('click', function() {
-            if (confirm('確定要清空所有截圖歷史記錄嗎？')) {
-                chrome.storage.local.set({screenshotHistory: []}, function() {
-                    document.body.removeChild(dialog);
-                    showStatus('歷史記錄已清空。', 'success');
-                });
+        clearBtn.addEventListener('click', async () => {
+            if (confirm('確定要清空所有截圖歷史嗎?')) {
+                await chrome.storage.local.set({screenshotHistory: []});
+                document.body.removeChild(dialog);
+                showStatus('歷史記錄已清空', 'success');
             }
         });
-        
-        dialogContent.appendChild(title);
-        dialogContent.appendChild(closeBtn);
-        dialogContent.appendChild(historyList);
-        dialogContent.appendChild(clearBtn);
-        dialog.appendChild(dialogContent);
+
+        content.appendChild(title);
+        content.appendChild(closeBtn);
+        content.appendChild(list);
+        content.appendChild(clearBtn);
+        dialog.appendChild(content);
         document.body.appendChild(dialog);
     }
-    
+
+    // 創建歷史項目
+    function createHistoryItem(item, index, history, dialog) {
+        const div = document.createElement('div');
+        div.style.cssText = `
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        `;
+
+        const info = document.createElement('div');
+        info.style.cssText = 'font-size: 12px; color: #7f8c8d; margin-bottom: 10px;';
+        info.innerHTML = `
+            <div><strong>時間:</strong> ${new Date(item.timestamp).toLocaleString('zh-TW')}</div>
+            <div><strong>類型:</strong> ${item.type}</div>
+            <div><strong>檔名:</strong> ${item.filename}</div>
+        `;
+
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display: flex; gap: 5px;';
+
+        const previewBtn = createButton('預覽', '#3498db', () => {
+            previewScreenshot(item.dataUrl);
+        });
+
+        const downloadBtn = createButton('下載', '#27ae60', () => {
+            downloadScreenshot(item.dataUrl, item.filename);
+        });
+
+        const deleteBtn = createButton('刪除', '#e74c3c', async () => {
+            if (confirm('確定要刪除這張截圖嗎?')) {
+                history.splice(index, 1);
+                await chrome.storage.local.set({screenshotHistory: history});
+                document.body.removeChild(dialog);
+                createHistoryDialog(history);
+            }
+        });
+
+        btnContainer.appendChild(previewBtn);
+        btnContainer.appendChild(downloadBtn);
+        btnContainer.appendChild(deleteBtn);
+
+        div.appendChild(info);
+        div.appendChild(btnContainer);
+
+        return div;
+    }
+
+    // 創建按鈕
+    function createButton(text, color, onClick) {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.cssText = `
+            background: ${color};
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 15px;
+            cursor: pointer;
+            flex: 1;
+        `;
+        btn.addEventListener('click', onClick);
+        return btn;
+    }
+
     // 預覽截圖
     function previewScreenshot(dataUrl) {
-        var previewDialog = document.createElement('div');
-        previewDialog.style.cssText = `
+        const preview = document.createElement('div');
+        preview.style.cssText = `
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 99999;
         `;
-        
-        var img = document.createElement('img');
+
+        const img = document.createElement('img');
         img.src = dataUrl;
         img.style.cssText = `
             max-width: 90%;
             max-height: 90%;
-            border: 4px solid white;
-            border-radius: 8px;
+            border: 2px solid white;
+            border-radius: 4px;
         `;
-        
-        var closeBtn = document.createElement('button');
+
+        const closeBtn = document.createElement('button');
         closeBtn.textContent = '關閉';
         closeBtn.style.cssText = `
             position: absolute;
@@ -286,28 +281,31 @@ document.addEventListener('DOMContentLoaded', function() {
             color: white;
             border: none;
             border-radius: 4px;
-            padding: 8px 15px;
+            padding: 10px 20px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
         `;
-        
-        closeBtn.addEventListener('click', function() {
-            document.body.removeChild(previewDialog);
+        closeBtn.addEventListener('click', () => document.body.removeChild(preview));
+
+        preview.addEventListener('click', (e) => {
+            if (e.target === preview) {
+                document.body.removeChild(preview);
+            }
         });
-        
-        previewDialog.appendChild(img);
-        previewDialog.appendChild(closeBtn);
-        document.body.appendChild(previewDialog);
+
+        preview.appendChild(img);
+        preview.appendChild(closeBtn);
+        document.body.appendChild(preview);
     }
-    
+
     // 下載截圖
     function downloadScreenshot(dataUrl, filename) {
-        var link = document.createElement('a');
+        const link = document.createElement('a');
         link.href = dataUrl;
         link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        showStatus('下載已開始。', 'success');
+        showStatus('下載已開始', 'success');
     }
 });
