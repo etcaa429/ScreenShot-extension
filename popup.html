@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot 截圖工具</title>
+    <style>
+        body {
+            width: 280px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            color: #2c3e50;
+            margin: 0 0 5px 0;
+        }
+        
+        .header .version {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin: 0;
+        }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .action-button {
+            padding: 12px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .action-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .action-button.scrolling {
+            background-color: #27ae60;
+        }
+        
+        .action-button.scrolling:hover {
+            background-color: #219653;
+        }
+        
+        .history-button {
+            background-color: #95a5a6;
+        }
+        
+        .history-button:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .settings-button {
+            background-color: #f39c12;
+            margin-top: 15px;
+        }
+        
+        .settings-button:hover {
+            background-color: #e67e22;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+            display: none;
+        }
+        
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading .spinner {
+            display: inline-block;
+        }
+        
+        .loading .text {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Screenshot</h1>
+        <p class="version">Version 1.0 created by</p>
+    </div>
+    
+    <div class="button-container">
+        <button class="action-button" id="normalScreenshot">
+            <span class="text">截圖 Screenshot</span>
+            <div class="spinner"></div>
+        </button>
+        
+        <button class="action-button scrolling" id="scrollingScreenshot">
+            <span class="text">滾動截圖 Scrolling</span>
+            <div class="spinner"></div>
+        </button>
+        
+        <button class="action-button history-button" id="viewHistory">
+            <span class="text">查看截圖歷史</span>
+            <div class="spinner"></div>
+        </button>
+        
+        <button class="action-button settings-button" id="openSettings">
+            設置 Options
+        </button>
+    </div>
+    
+    <div class="status" id="statusMessage"></div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
